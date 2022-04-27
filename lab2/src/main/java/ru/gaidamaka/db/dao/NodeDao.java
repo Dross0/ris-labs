@@ -4,8 +4,12 @@ import lombok.extern.slf4j.Slf4j;
 import ru.gaidamaka.db.ConnectionManager;
 import ru.gaidamaka.exception.DataAccessException;
 import ru.gaidamaka.model.xml.Node;
+import ru.gaidamaka.model.xml.Tag;
 
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 @Slf4j
 public class NodeDao extends AbstractNodeDao {
@@ -35,6 +39,31 @@ public class NodeDao extends AbstractNodeDao {
             throw new DataAccessException("Ошибка добавлениии node с id=" + entity.getId().longValue());
         }
 
+    }
+
+    @Override
+    public List<Node> saveAll(Iterable<Node> nodes){
+        try (Connection connection = connectionManager.getConnection()){
+            try (PreparedStatement preparedStatement = connection.prepareStatement(SQL_INSERT_NODE)){
+                List<Node> savedEntities = new ArrayList<>();
+                for (Node node: nodes){
+                    fillPreparedStatement(node, preparedStatement);
+                    int rowsUpdated = preparedStatement.executeUpdate();
+                    if (rowsUpdated == 1) {
+                        savedEntities.add(node);
+                    } else {
+                        log.error("Ошибка сохранения узла={}", node);
+                        connection.rollback();
+                        return Collections.emptyList();
+                    }
+                }
+                connection.commit();
+                return savedEntities;
+            }
+        } catch (SQLException e) {
+            log.error("Ошибка сохранения списка nodes", e);
+            throw new DataAccessException("Ошибка сохранения списка nodes");
+        }
     }
 
     protected void fillPreparedStatement(Node entity, PreparedStatement preparedStatement) throws SQLException {

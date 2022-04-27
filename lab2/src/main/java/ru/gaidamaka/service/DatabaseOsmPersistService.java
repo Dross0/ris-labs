@@ -8,6 +8,8 @@ import ru.gaidamaka.model.xml.Node;
 import ru.gaidamaka.model.xml.Osm;
 import ru.gaidamaka.model.xml.Tag;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @RequiredArgsConstructor
@@ -26,26 +28,19 @@ public class DatabaseOsmPersistService implements OsmPersistService {
     }
 
     @Override
-    public void persist(Osm osm, long limit) {
+    public void persist(Osm osm, int limit) {
         schemaManager.drop();
         schemaManager.create();
         long start = System.nanoTime();
-        for (int nodeIndex = 0; nodeIndex < limit; nodeIndex++){
-            Node node = osm.getNode().get(nodeIndex);
-            boolean createdNode = nodeDao.create(node);
-            if (createdNode){
-                for (Tag tag: node.getTag()){
-                    tag.setNodeId(node.getId().longValue());
-                    boolean tagCreated = tagDao.create(tag);
-                    if (!tagCreated){
-                        log.error("Ошибка сохранения tag='{}' для node с id='{}'", tag.getK(), tag.getNodeId());
-                    }
-                }
-            } else {
-                log.error("Ошибка сохранения node с id='{}'", node.getId());
-            }
+        List<Node> nodes = osm.getNode().subList(0, limit);
+        List<Node> savedNodes = nodeDao.saveAll(nodes);
+        List<Tag> tags = new ArrayList<>();
+        for (Node node: savedNodes){
+            node.getTag().forEach(tag -> tag.setNodeId(node.getId().longValue()));
+            tags.addAll(node.getTag());
         }
+        tagDao.saveAll(tags);
         long end = System.nanoTime();
-        log.info("Time: {}", TimeUnit.MILLISECONDS.convert(end - start, TimeUnit.NANOSECONDS));
+        log.info("Time: {} ms", TimeUnit.MILLISECONDS.convert(end - start, TimeUnit.NANOSECONDS));
     }
 }

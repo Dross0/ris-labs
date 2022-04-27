@@ -14,4 +14,6 @@ public interface Dao<K extends Number, T> {
     boolean create(T entity);
 
     T update(T entity);
+
+    List<T> saveAll(Iterable<T> entities);
 }

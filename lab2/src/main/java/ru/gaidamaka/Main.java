@@ -22,7 +22,7 @@ import java.io.*;
 
 public class Main {
     private static final Logger log = LoggerFactory.getLogger(Main.class);
-    public static final long NODE_PERSIST_LIMIT = 2000L;
+    public static final int NODE_PERSIST_LIMIT = 200000;
     public static final String PROPERTY_FILE_NAME = "db.properties";
 
     public static void main(String[] args) {
@@ -49,25 +49,23 @@ public class Main {
         }
     }
 
+
     private static OsmPersistService getPersistServiceWithPreparedStatement(ConnectionManager connectionManager){
-        Dao<Long, Node> nodeDao = new NodeDao(connectionManager);
-        Dao<Long, Tag> tagDao = new TagDao(connectionManager);
-        DatabaseSchemaManager schemaManager = new DatabaseSchemaManagerImpl(connectionManager);
-        return new DatabaseOsmPersistService(schemaManager, nodeDao, tagDao);
+        return createOsmPersistService(connectionManager, new NodeDao(connectionManager));
     }
 
     private static OsmPersistService getPersistServiceWithString(ConnectionManager connectionManager){
-        Dao<Long, Node> nodeDao = new NodeStringInsertDao(connectionManager);
-        Dao<Long, Tag> tagDao = new TagDao(connectionManager);
-        DatabaseSchemaManager schemaManager = new DatabaseSchemaManagerImpl(connectionManager);
-        return new DatabaseOsmPersistService(schemaManager, nodeDao, tagDao);
+        return createOsmPersistService(connectionManager, new NodeStringInsertDao(connectionManager));
     }
 
     private static OsmPersistService getPersistServiceWithBatch(ConnectionManager connectionManager){
-        NodeBatchDao nodeBatchDao = new NodeBatchDao(connectionManager);
+        return createOsmPersistService(connectionManager, new NodeBatchDao(connectionManager));
+    }
+
+    private static OsmPersistService createOsmPersistService(ConnectionManager connectionManager, Dao<Long, Node> nodeDao){
         Dao<Long, Tag> tagDao = new TagDao(connectionManager);
         DatabaseSchemaManager schemaManager = new DatabaseSchemaManagerImpl(connectionManager);
-        return new DatabaseOsmPersistService(schemaManager, nodeBatchDao, tagDao);
+        return new DatabaseOsmPersistService(schemaManager, nodeDao, tagDao);
     }
 
 

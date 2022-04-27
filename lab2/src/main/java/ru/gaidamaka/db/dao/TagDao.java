@@ -8,6 +8,7 @@ import ru.gaidamaka.model.xml.Tag;
 
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -84,9 +85,7 @@ public class TagDao implements Dao<Long, Tag> {
     public boolean create(Tag entity) {
         try (Connection connection = connectionManager.getConnection()){
             try (PreparedStatement preparedStatement = connection.prepareStatement(SQL_INSERT_TAG)) {
-                preparedStatement.setString(1, entity.getK());
-                preparedStatement.setString(2, entity.getV());
-                preparedStatement.setLong(3, entity.getNodeId());
+                fillTagPreparedStatement(entity, preparedStatement);
                 int rowsUpdated = preparedStatement.executeUpdate();
                 if (rowsUpdated == 1){
                     connection.commit();
@@ -105,9 +104,8 @@ public class TagDao implements Dao<Long, Tag> {
     public Tag update(Tag entity) {
         try (Connection connection = connectionManager.getConnection()){
             try (PreparedStatement preparedStatement = connection.prepareStatement(SQL_UPDATE_TAG_BY_ID)) {
-                preparedStatement.setString(1, entity.getK());
-                preparedStatement.setString(2, entity.getV());
-                preparedStatement.setLong(3, entity.getNodeId());
+                fillTagPreparedStatement(entity, preparedStatement);
+                preparedStatement.setLong(4, entity.getId());
                 int rowsUpdated = preparedStatement.executeUpdate();
                 if (rowsUpdated == 1){
                     connection.commit();
@@ -120,6 +118,37 @@ public class TagDao implements Dao<Long, Tag> {
             log.error("Ошибка при обновлении tag с id='{}'", entity.getId(), e);
             throw new DataAccessException("Ошибка обновление tag с id=" + entity.getId());
         }
+    }
+
+    @Override
+    public List<Tag> saveAll(Iterable<Tag> entities) {
+        try (Connection connection = connectionManager.getConnection()){
+            try (PreparedStatement preparedStatement = connection.prepareStatement(SQL_INSERT_TAG)){
+                List<Tag> savedEntities = new ArrayList<>();
+                for (Tag tag: entities){
+                    fillTagPreparedStatement(tag, preparedStatement);
+                    int rowsUpdated = preparedStatement.executeUpdate();
+                    if (rowsUpdated == 1) {
+                        savedEntities.add(tag);
+                    } else {
+                        log.error("Ошибка сохранения тэга={}", tag);
+                        connection.rollback();
+                        return Collections.emptyList();
+                    }
+                }
+                connection.commit();
+                return savedEntities;
+            }
+        } catch (SQLException e) {
+            log.error("Ошибка сохранения списка tags", e);
+            throw new DataAccessException("Ошибка сохранения списка tags");
+        }
+    }
+
+    private void fillTagPreparedStatement(Tag tag, PreparedStatement preparedStatement) throws SQLException {
+        preparedStatement.setString(1, tag.getK());
+        preparedStatement.setString(2, tag.getV());
+        preparedStatement.setLong(3, tag.getNodeId());
     }
 
     private Tag extractTag(ResultSet resultSet) throws SQLException {

@@ -6,6 +6,7 @@ import ru.gaidamaka.exception.DataAccessException;
 import ru.gaidamaka.model.xml.Node;
 
 import java.sql.*;
+import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -17,19 +18,23 @@ public class NodeBatchDao extends NodeDao{
         super(connectionManager);
     }
 
-    public boolean createNodes(List<Node> nodes){
+    @Override
+    public List<Node> saveAll(Iterable<Node> nodes){
         try (Connection connection = connectionManager.getConnection()){
-            try (PreparedStatement preparedStatement = connection.prepareStatement(SQL_INSERT_NODE)) {
-                for (Node node: nodes) {
+            try (PreparedStatement preparedStatement = connection.prepareStatement(SQL_INSERT_NODE)){
+                List<Node> savedEntities = new ArrayList<>();
+                for (Node node: nodes){
                     fillPreparedStatement(node, preparedStatement);
                     preparedStatement.addBatch();
+                    savedEntities.add(node);
                 }
                 preparedStatement.executeBatch();
-                return true;
+                connection.commit();
+                return savedEntities;
             }
         } catch (SQLException e) {
-            log.error("Ошибка при добавлении nodes", e);
-            throw new DataAccessException("Ошибка добавления nodes");
+            log.error("Ошибка сохранения списка nodes", e);
+            throw new DataAccessException("Ошибка сохранения списка nodes");
         }
     }
 }
